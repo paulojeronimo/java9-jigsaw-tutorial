@@ -1,0 +1,23 @@
+#!/bin/bash
+set -x
+set -e
+
+BASE_DIR=`cd "$(dirname "$0")";pwd`
+
+git checkout -b patch4
+for m in helloworld utils services providers
+do
+  d=$m/src/main/java
+  mkdir -p $d
+  pushd src/com.paulojeronimo.$m > /dev/null
+  git mv * ../../$d
+  popd > /dev/null
+done
+rsync -av $BASE_DIR/patch4/ .
+
+git add -A
+git commit -m patch4
+git checkout master
+d=../../patches
+mkdir -p $d && git diff master..patch4 > $d/4.patch
+git branch -D patch4

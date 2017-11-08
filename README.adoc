@@ -1,0 +1,597 @@
+= Java 9: Modularity
+Paulo Jerônimo, <pj@paulojeronimo.com>
+{localdatetime}
+:toc: left
+:numbered:
+:icons: font
+
+:Jigsaw: http://openjdk.java.net/projects/jigsaw/[Jigsaw]
+:Bash: https://www.gnu.org/software/bash/[Bash]
+:Git: https://git-scm.com/[Git]
+:sdkman: http://sdkman.io/[SDKMAN]
+:Java9: https://docs.oracle.com/javase/9/whatsnew/toc.htm[Java 9]
+:Vim: http://www.vim.org/[Vim]
+:Maven: http://maven.org[Maven]
+:Gradle: https://gradle.org/[Gradle]
+:ServiceLoader: https://docs.oracle.com/javase/9/docs/api/java/util/ServiceLoader.html[ServiceLoader]
+
+[[about]]
+== About
+
+This project presents project {Jigsaw} in a tutorial way.
+{Jigsaw} is the main new feature of {Java9}.
+
+After finish the steps presented here you will have a full {Git} repository.
+Following these steps you will get a fully understanding of the basics of {Jigsaw} and, also, another topics.
+These other topics are:
+
+* Build multi-module projects with {Maven} and {Gradle}.
+* {ServiceLoader} API enhancements in {Java9}.
+
+== Prerequisites (tools)
+
+To folow the steps in this tutorial, we will need the following tools installed in our environment:
+
+* A shell running {Bash}.
+* A simple editor.
+I will use and present this tutorial by using {Vim}.
+You can adapt the following commands if you are not confortable with this editor.
+* {sdkman}.
+* {Git}.
+* {Java9} (it can be installed with {sdkman}).
+* {Maven} (it can be installed with {sdkman}).
+* {Gradle} (it can be installed with {sdkman}).
+
+One way to get these tools quickly installed in your environment, without to much effort, is by using my `Fedora vagrant box`.
+To setup this box in your operational system, folow the topics covered in "<<fedora-vagrant-box-install>>".
+
+== Creating and running a non modular HelloWorld
+
+Let's start by cloning the Git repo of this tutorial:
+
+----
+#REPO=https://github.com/paulojeronimo/java9-jigsaw-tutorial
+$ REPO=git@bitbucket.org:paulojeronimo/java9-jigsaw-tutorial.git
+$ git clone $REPO
+$ cd ${REPO##*/}
+----
+
+Creating an empty HelloWorld Git repository:
+
+----
+$ mkdir -p java9-jigsaw-tutorial-samples && cd $_
+$ git init
+----
+
+Creating and filling up the HelloWorld with some initial code:
+
+----
+$ mkdir -p HelloWorld/src && cd $(dirname $_)
+$ f=com/paulojeronimo/helloworld/Main.java
+$ (cd ../../src/HelloWorld && rsync -avR $f $OLDPWD/src)
+----
+
+Let's view our initial code (we can type `:q` to exit):
+
+----
+$ tree src/
+$ vim -R src/$f
+----
+
+Compiling our HelloWorld project:
+
+----
+$ javac -d classes $(find src -name '*.java')
+----
+
+NOTE: Before Java 9 the `classes` directory needed to be an existing directory.
+
+Running HelloWorld Main class:
+
+----
+$ java -cp classes com.paulojeronimo.helloworld.Main
+----
+
+Running HelloWorld Main class passing a parameter:
+
+----
+$ java -cp classes com.paulojeronimo.helloworld.Main 'Paulo Jerônimo'
+----
+
+Creating our first commit:
+
+----
+$ echo '/classes' >> .gitignore
+$ git add -A
+$ git status
+$ git commit -m '[HelloWorld] Initial commit'
+----
+
+Checking Git repository log:
+
+----
+$ git log
+----
+
+== Creating a fat jar and running app through it
+
+Creating a directory to put ours jars and after that, creating our jar:
+
+----
+$ mkdir -p jars
+$ jar --create --file jars/paulojeronimo-helloworld.jar --main-class com.paulojeronimo.helloworld.Main -C classes .
+$ tree
+----
+
+Running our application through our jar:
+
+----
+$ java -cp jars/paulojeronimo-helloworld.jar com.paulojeronimo.helloworld.Main
+$ java -cp jars/paulojeronimo-helloworld.jar com.paulojeronimo.helloworld.Main 'Paulo jerônimo'
+----
+
+As we use `--main-class` to create the jar, we can run without the class name:
+
+----
+$ java -jar jars/paulojeronimo-helloworld.jar
+$ java -jar jars/paulojeronimo-helloworld.jar 'Paulo Jerônimo'
+----
+
+Let's commit our code and checking repository log:
+
+----
+$ echo '/jars' >> .gitignore
+$ git commit -am '[HelloWorld] Added jars dir to gitignore'
+$ git log
+----
+
+== Creating our first module
+
+Creating `module-info.java`:
+
+----
+$ cat > src/module-info.java <<'EOF'
+module com.paulojeronimo.helloworld { }
+EOF
+
+$ tree src/
+----
+
+Compiling again:
+
+----
+$ javac -d classes $(find src -name '*.java')
+$ tree classes/
+----
+
+Decompiling `module-info.class` to what it is:
+
+----
+$ javap classes/module-info.class
+----
+
+Rebuilding our jar to include `module-info.class`:
+
+----
+$ jar --create --file jars/paulojeronimo-helloworld.jar -C classes .
+----
+
+We can pass `--describe-module` to `jar` to see informations about the module:
+
+----
+$ jar --file jars/paulojeronimo-helloworld.jar --describe-module
+----
+
+Running `Main` from the jar module:
+
+----
+$ java --module-path jars -m com.paulojeronimo.helloworld/com.paulojeronimo.helloworld.Main
+----
+
+Of course we can still run `Main` by using `-classpath`:
+
+----
+$ java -classpath jars/paulojeronimo-helloworld.jar com.paulojeronimo.helloworld.Main
+----
+
+Using `--main-class` again:
+
+----
+$ jar --create --file jars/paulojeronimo-helloworld.jar --main-class com.paulojeronimo.helloworld.Main -C classes .
+----
+
+Running through the module name (note: `"--module-path".equals("-p")`):
+
+----
+$ java -p jars -m com.paulojeronimo.helloworld
+----
+
+Commiting changes and viewing log:
+
+----
+$ git add -A
+$ git commit -m '[HelloWorld] Added module-info.java'
+$ git log
+----
+
+== Creating a utility class for HelloWorld
+
+Review and apply a patch:
+
+----
+$ patch=../../patches/1.patch
+$ vim -R $patch
+$ git apply $patch
+----
+
+Removing existing compiled classes:
+
+----
+$ rm -rf classes
+----
+
+Viewing our changes:
+
+----
+$ tree src/
+$ vim -R -p src/com/paulojeronimo/{helloworld/Main.java,utils/Message.java}
+----
+
+Compiling:
+
+----
+$ javac -d classes $(find src -name '*.java')
+$ tree classes/
+----
+
+Running:
+
+----
+$ java -cp classes com.paulojeronimo.helloworld.Main
+$ java -cp classes com.paulojeronimo.helloworld.Main 'Paulo Jerônimo'
+----
+
+Commiting changes and viewing log:
+
+----
+$ git add -A
+$ git commit -m '[HelloWorld] Created a utility class for HelloWorld'
+$ git log
+----
+
+== Splitting HelloWorld into two modules
+
+----
+$ patch=../../patches/2.patch
+$ vim -R $patch
+$ git apply $patch
+----
+
+----
+$ rm -rf classes jars
+----
+
+----
+$ tree src/
+----
+
+----
+$ mod=com.paulojeronimo.utils
+$ javac -d mods/$mod $(find src/$mod -name '*.java')
+$ tree mods/
+----
+
+----
+$ mod=com.paulojeronimo.helloworld
+$ javac -d mods/$mod $(find src/$mod -name '*.java') -p mods
+$ !tree
+----
+
+----
+$ java -p mods -m com.paulojeronimo.helloworld/com.paulojeronimo.helloworld.Main
+----
+
+----
+$ sed -i 's,/classes,/mods,g' .gitignore <1>
+$ git add -A
+$ git commit -m '[HelloWorld] Splitted into two modules'
+$ git log
+----
+<1> On macOS type: `sed -i '' 's,/classes,/mods,g' .gitignore`
+
+== Multi-module compilation
+
+----
+$ rm -rf mods
+$ javac -d mods --module-source-path src $(find src -name '*.java')
+$ !tree
+----
+
+== Packaging
+
+----
+$ mkdir -p mlib
+----
+
+----
+$ jar --create --file=mlib/paulojeronimo-utils.jar -C mods/com.paulojeronimo.utils .
+$ tree mlib/
+----
+
+----
+$ jar --create --file=mlib/paulojeronimo-helloworld.jar --main-class=com.paulojeronimo.helloworld.Main -C mods/com.paulojeronimo.helloworld .
+$ !tree
+----
+
+----
+$ java -p mlib -m com.paulojeronimo.helloworld
+----
+
+----
+$ jar --file mlib/paulojeronimo-utils.jar --describe-module
+$ jar --file mlib/paulojeronimo-helloworld.jar --describe-module
+----
+
+----
+$ sed -i 's,/jars,/mlib,g' .gitignore <1>
+$ git add -A
+$ git commit -m '[HelloWorld] Changed modules directory: from jars to mlib'
+$ git log
+----
+<1> Modify this to run on macOS!
+
+== Using jmod and jlink
+
+----
+$ ls $JAVA_HOME/jmods
+$ mod=$JAVA_HOME/jmods/java.base.jmod
+$ jmod list $mod | less
+$ jmod describe $mod | less
+----
+
+----
+$ jlink -p $JAVA_HOME/jmods --add-modules java.base --output jre
+$ du -hs jre/
+$ tree jre/ | tee jre.tree.txt | less
+$ (cd jre; find . -type f | xargs shasum) > jre.shasum.txt
+$ ./jre/bin/java --version
+$ ./jre/bin/java -p mlib -m com.paulojeronimo.helloworld
+----
+
+----
+$ jlink -p $JAVA_HOME/jmods:mlib --add-modules com.paulojeronimo.utils,com.paulojeronimo.helloworld --output helloworld
+$ du -hs jre/ helloworld/
+$ tree helloworld/ | tee helloworld.tree.txt | less
+$ (cd helloworld; find . -type f | xargs shasum) > helloworld.shasum.txt
+$ ./helloworld/bin/java -m com.paulojeronimo.helloworld
+----
+
+----
+$ diff {jre,helloworld}.tree.txt
+$ diff {jre,helloworld}.shasum.txt
+$ vim -d {jre,helloworld}/release
+$ file ./jre/lib/modules
+----
+
+----
+$ rm -rf helloworld
+$ !jlink --strip-debug --compress 2 --launcher hello=com.paulojeronimo.helloworld
+$ du -hs jre/ helloworld/
+$ ./helloworld/bin/hello 'Paulo Jerônimo' <1>
+----
+<1> Bug found!! ( TODO: create a fix and submit it to OpenJDK! :D )
+
+----
+$ patch ./helloworld/bin/hello < ../../patches/hello.patch
+$ ./helloworld/bin/hello 'Paulo Jerônimo'
+----
+
+== Creating and running a Docker container
+
+----
+$ cat > Dockerfile <<'EOF'
+FROM buildpack-deps:jessie-curl
+COPY helloworld/ /home/helloworld/
+WORKDIR /home/helloworld
+ENTRYPOINT ["bin/hello"]
+EOF
+$ docker build -t java9-helloworld .
+$ docker images
+----
+
+----
+$ docker run --rm java9-helloworld
+$ docker run --rm java9-helloworld 'Paulo Jeronimo'
+----
+
+----
+echo -e '/*.txt\n/helloworld\n/jre' >> .gitignore
+git add -A
+git commit -m '[HelloWorld] Added Dockerfile'
+git log
+----
+
+== Adding a service locator
+
+----
+$ patch=../../patches/3.patch
+$ vim -R $patch
+$ git apply $patch
+----
+
+----
+$ rm -rf mods/ mlib/ helloworld* jre*
+----
+
+----
+$ tree src/
+----
+
+----
+$ vim src/com.paulojeronimo.helloworld/module-info.java
+:split
+:e src/com.paulojeromio.helloworld/com/paulojeronimo/helloworld/Main.java
+:tabnew
+:e src/com.paulojeronimo.services/module-info.java
+:split
+:e src/com.paulojeronimo.services/com/paulojeronimo/services/MessageService.java
+:tabnew
+:e src/com.paulojeronimo.providers/module-info.java
+:split
+:tabedit src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/TextMessageService.java
+:split
+:tabedit src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/HtmlMessageService.java
+----
+
+----
+$ javac -d mods --module-source-path src $(find src -name '*.java')
+----
+
+----
+$ java -p mods -m com.paulojeronimo.hellowold/com.paulojeronimo.helloWorld.Main
+----
+
+----
+$ git add -A
+$ git commit -m '[HelloWorld] Added a service localor'
+$ git log
+----
+
+== Using Maven
+
+----
+$ patch=../../patches/4.patch
+$ vim -R $patch
+$ git apply $patch
+----
+
+----
+$ rm -rf mods mlib
+$ tree
+----
+
+----
+$ mvn clean package
+$ ls -l mlib
+----
+
+----
+$ java -p mlib -m com.paulojeronimo.helloworld
+$ jar --file mlib/paulojeronimo-helloworld-1.0-SNAPSHOT.jar --describe-module
+----
+
+----
+$ cat jre.build
+$ ./jre.build
+$ du -hs jre
+$ ./jre/bin/hello 'Paulo Jeronimo'
+----
+
+----
+$ docker build -t java9-helloworld .
+$ docker run --rm java9-helloworld 'Paulo Jeronimo'
+----
+
+----
+$ git add -A
+$ git status
+$ git commit -m '[HelloWorld] Added maven support'
+----
+
+== Create a Java Run-Time Image With Maven
+
+TODO
+
+* Ref: http://blog.soebes.de/blog/2017/06/06/howto-create-a-java-run-time-image-with-maven/
+
+== Using Gradle
+
+== Errors
+
+TODO
+
+=== Module required
+
+=== Module not found
+
+=== Cyclic dependency
+
+== Extras
+
+[[fedora-vagrant-box-install]]
+=== Fedora vagrant box install
+
+TODO
+
+=== Steps followed to create the patches used in this tutorial
+
+==== Patch 1
+
+----
+$ git checkout -b patch1
+
+$ f=com/paulojeronimo/helloworld/Main.java.1; d=src/$(dirname $f)
+$ mkdir -p $d && cp ../../src/HelloWorld/$f $d/Main.java
+$ f=com/paulojeronimo/utils/Message.java; d=src/$(dirname $f)
+$ mkdir -p $d && cp ../../src/HelloWorld/$f $d/
+
+$ git add -A
+$ git commit -m patch1
+$ git checkout master
+$ d=../../patches
+$ mkdir -p $d && git diff master..patch1 > $d/1.patch
+$ git branch -D patch1
+----
+
+==== Patch 2
+
+----
+$ git checkout -b patch2
+
+$ mkdir -p src/com.paulojeronimo.helloworld
+$ mv src/{com,module-info.java} src/com.paulojeronimo.helloworld
+$ mkdir -p src/com.paulojeronimo.utils/com/paulojeronimo
+$ mv src/com.paulojeronimo.helloworld/com/paulojeronimo/utils src/com.paulojeronimo.utils/com/paulojeronimo
+
+$ cat > src/com.paulojeronimo.utils/module-info.java <<'EOF'
+module com.paulojeronimo.utils {
+  exports com.paulojeronimo.utils;
+}
+EOF
+
+$ cat > src/com.paulojeronimo.helloworld/module-info.java <<'EOF'
+module com.paulojeronimo.helloworld {
+  requires com.paulojeronimo.utils;
+}
+EOF
+
+$ git add -A
+$ git commit -m patch2
+$ git checkout master
+$ d=../../patches
+$ mkdir -p $d && git diff master..patch2 > $d/2.patch
+$ git branch -D patch2
+----
+
+==== Patch 3
+
+----
+$ git checkout -b patch3
+$ git mv src/com.paulojeronimo.{utils,services}
+$ git mv src/com.paulojeronimo.services/com/paulojeronimo/{utils,services}
+$ git mv src/com.paulojeronimo.services/com/paulojeronimo/services/{Message,MessageService}.java
+TODO ...
+----
+
+==== Patch 4
+
+----
+$ ../../src/HelloWorld/patch4.run
+----
+
+== References
+
+. http://openjdk.java.net/projects/jigsaw/quick-start[Project Jigsaw: Module System Quick-Start Guide]
+. https://www.youtube.com/watch?v=MGX-JfMl9-Y[Modules in One Lession]
+. https://www.youtube.com/watch?v=M7q3C8OwJe8[Migrating to Modules]
+. https://github.com/cfdobber/maven-java9-jigsaw

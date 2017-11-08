@@ -1,0 +1,33 @@
+diff --git a/HelloWorld/src/com/paulojeronimo/helloworld/Main.java b/HelloWorld/src/com.paulojeronimo.helloworld/com/paulojeronimo/helloworld/Main.java
+similarity index 100%
+rename from HelloWorld/src/com/paulojeronimo/helloworld/Main.java
+rename to HelloWorld/src/com.paulojeronimo.helloworld/com/paulojeronimo/helloworld/Main.java
+diff --git a/HelloWorld/src/com.paulojeronimo.helloworld/module-info.java b/HelloWorld/src/com.paulojeronimo.helloworld/module-info.java
+new file mode 100644
+index 0000000..391674c
+--- /dev/null
++++ b/HelloWorld/src/com.paulojeronimo.helloworld/module-info.java
+@@ -0,0 +1,3 @@
++module com.paulojeronimo.helloworld {
++  requires com.paulojeronimo.utils;
++}
+diff --git a/HelloWorld/src/com/paulojeronimo/utils/Message.java b/HelloWorld/src/com.paulojeronimo.utils/com/paulojeronimo/utils/Message.java
+similarity index 100%
+rename from HelloWorld/src/com/paulojeronimo/utils/Message.java
+rename to HelloWorld/src/com.paulojeronimo.utils/com/paulojeronimo/utils/Message.java
+diff --git a/HelloWorld/src/com.paulojeronimo.utils/module-info.java b/HelloWorld/src/com.paulojeronimo.utils/module-info.java
+new file mode 100644
+index 0000000..54c37a2
+--- /dev/null
++++ b/HelloWorld/src/com.paulojeronimo.utils/module-info.java
+@@ -0,0 +1,3 @@
++module com.paulojeronimo.utils {
++  exports com.paulojeronimo.utils;
++}
+diff --git a/HelloWorld/src/module-info.java b/HelloWorld/src/module-info.java
+deleted file mode 100644
+index 8b2fa88..0000000
+--- a/HelloWorld/src/module-info.java
++++ /dev/null
+@@ -1 +0,0 @@
+-module com.paulojeronimo.helloworld { }

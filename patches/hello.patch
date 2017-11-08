@@ -1,0 +1,8 @@
+--- hello.original	2017-11-08 13:21:10.201095972 +0000
++++ hello	2017-11-08 13:21:22.150167194 +0000
+@@ -1,4 +1,4 @@
+ #!/bin/sh
+ JLINK_VM_OPTIONS=
+ DIR=`dirname $0`
+-$DIR/java $JLINK_VM_OPTIONS -m com.paulojeronimo.helloworld/com.paulojeronimo.helloworld.Main $@
++$DIR/java $JLINK_VM_OPTIONS -m com.paulojeronimo.helloworld/com.paulojeronimo.helloworld.Main "$@"

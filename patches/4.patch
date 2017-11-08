@@ -1,0 +1,328 @@
+diff --git a/HelloWorld/.gitignore b/HelloWorld/.gitignore
+index b02d57c..9a605e1 100644
+--- a/HelloWorld/.gitignore
++++ b/HelloWorld/.gitignore
+@@ -1,5 +1,5 @@
+ /mods
+ /mlib
+ /*.txt
+-/helloworld
+ /jre
++target
+diff --git a/HelloWorld/Dockerfile b/HelloWorld/Dockerfile
+index 2ec53aa..31d2933 100644
+--- a/HelloWorld/Dockerfile
++++ b/HelloWorld/Dockerfile
+@@ -1,4 +1,4 @@
+ FROM buildpack-deps:jessie-curl
+-COPY helloworld/ /home/helloworld/
++COPY jre/ /home/helloworld/
+ WORKDIR /home/helloworld
+ ENTRYPOINT ["bin/hello"]
+diff --git a/HelloWorld/helloworld/pom.xml b/HelloWorld/helloworld/pom.xml
+new file mode 100644
+index 0000000..ccf7667
+--- /dev/null
++++ b/HelloWorld/helloworld/pom.xml
+@@ -0,0 +1,68 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <parent>
++        <groupId>com.paulojeronimo</groupId>
++        <artifactId>helloworld</artifactId>
++        <version>1.0-SNAPSHOT</version>
++    </parent>
++    <modelVersion>4.0.0</modelVersion>
++
++    <artifactId>paulojeronimo-helloworld</artifactId>
++
++    <dependencies>
++        <dependency>
++            <groupId>com.paulojeronimo</groupId>
++            <artifactId>paulojeronimo-utils</artifactId>
++            <version>${project.version}</version>
++        </dependency>
++        <dependency>
++            <groupId>com.paulojeronimo</groupId>
++            <artifactId>paulojeronimo-services</artifactId>
++            <version>${project.version}</version>
++        </dependency>
++    </dependencies>
++
++    <build>
++        <plugins>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-jar-plugin</artifactId>
++                <configuration>
++                    <outputDirectory>../mlib</outputDirectory>
++                    <archive>
++                        <!-- this does not works yet. workaround provided bellow (1) -->
++                        <manifest>
++                            <mainClass>com.paulojeronimo.helloworld.Main</mainClass>
++                        </manifest>
++                    </archive>
++                </configuration>
++            </plugin>
++            <!-- (1) https://stackoverflow.com/a/46873091/8410767 -->
++            <plugin>
++                <artifactId>maven-antrun-plugin</artifactId>
++                <version>1.8</version>
++                <executions>
++                    <execution>
++                        <phase>package</phase>
++                        <configuration>
++                            <target>
++                                <exec executable="${java.home}/bin/jar" failonerror="true">
++                                    <arg value="--main-class"/>
++                                    <arg value="com.paulojeronimo.helloworld.Main"/>
++                                    <arg value="--update"/>
++                                    <arg value="--file"/>
++                                    <arg value="../mlib/${project.artifactId}-${project.version}.jar"/>
++                                </exec>
++                            </target>
++                        </configuration>
++                        <goals>
++                            <goal>run</goal>
++                        </goals>
++                    </execution>
++                </executions>
++            </plugin>
++        </plugins>
++    </build>
++</project>
+diff --git a/HelloWorld/src/com.paulojeronimo.helloworld/com/paulojeronimo/helloworld/Main.java b/HelloWorld/helloworld/src/main/java/com/paulojeronimo/helloworld/Main.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.helloworld/com/paulojeronimo/helloworld/Main.java
+rename to HelloWorld/helloworld/src/main/java/com/paulojeronimo/helloworld/Main.java
+diff --git a/HelloWorld/src/com.paulojeronimo.helloworld/module-info.java b/HelloWorld/helloworld/src/main/java/module-info.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.helloworld/module-info.java
+rename to HelloWorld/helloworld/src/main/java/module-info.java
+diff --git a/HelloWorld/jre.build b/HelloWorld/jre.build
+new file mode 100755
+index 0000000..039d40a
+--- /dev/null
++++ b/HelloWorld/jre.build
+@@ -0,0 +1,9 @@
++#!/bin/bash
++set -x
++
++rm -rf jre
++jlink -p $JAVA_HOME/jmods:mlib \
++  --add-modules com.paulojeronimo.utils,com.paulojeronimo.services,com.paulojeronimo.providers,com.paulojeronimo.helloworld \
++  --output jre \
++  --strip-debug --compress 2 --launcher hello=com.paulojeronimo.helloworld
++patch jre/bin/hello < ../../patches/hello.patch
+diff --git a/HelloWorld/pom.xml b/HelloWorld/pom.xml
+new file mode 100644
+index 0000000..29d266c
+--- /dev/null
++++ b/HelloWorld/pom.xml
+@@ -0,0 +1,70 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <modelVersion>4.0.0</modelVersion>
++
++    <groupId>com.paulojeronimo</groupId>
++    <artifactId>helloworld</artifactId>
++    <packaging>pom</packaging>
++    <version>1.0-SNAPSHOT</version>
++    <modules>
++        <module>utils</module>
++        <module>services</module>
++        <module>providers</module>
++        <module>helloworld</module>
++    </modules>
++
++    <properties>
++        <maven.compiler.source>1.9</maven.compiler.source>
++        <maven.compiler.target>1.9</maven.compiler.target>
++        <maven.compiler.release>9</maven.compiler.release>
++    </properties>
++
++    <build>
++        <pluginManagement>
++            <plugins>
++                <plugin>
++                    <groupId>org.apache.maven.plugins</groupId>
++                    <artifactId>maven-compiler-plugin</artifactId>
++                    <version>3.7.0</version>
++                </plugin>
++                <plugin>
++                    <groupId>org.apache.maven.plugins</groupId>
++                    <artifactId>maven-jar-plugin</artifactId>
++                    <version>3.0.2</version>
++                </plugin>
++                <plugin>
++                    <groupId>org.apache.maven.plugins</groupId>
++                    <artifactId>maven-toolchains-plugin</artifactId>
++                    <version>1.1</version>
++                </plugin>
++            </plugins>
++        </pluginManagement>
++        <plugins>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-compiler-plugin</artifactId>
++            </plugin>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-toolchains-plugin</artifactId>
++                <configuration>
++                    <toolchains>
++                        <jdk>
++                            <version>1.9</version>
++                            <vendor>oracle</vendor>
++                        </jdk>
++                    </toolchains>
++                </configuration>
++                <executions>
++                    <execution>
++                        <goals>
++                            <goal>toolchain</goal>
++                        </goals>
++                    </execution>
++                </executions>
++            </plugin>
++        </plugins>
++    </build>
++</project>
+diff --git a/HelloWorld/providers/pom.xml b/HelloWorld/providers/pom.xml
+new file mode 100644
+index 0000000..e4ebe9c
+--- /dev/null
++++ b/HelloWorld/providers/pom.xml
+@@ -0,0 +1,38 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <parent>
++        <groupId>com.paulojeronimo</groupId>
++        <artifactId>helloworld</artifactId>
++        <version>1.0-SNAPSHOT</version>
++    </parent>
++    <modelVersion>4.0.0</modelVersion>
++
++    <artifactId>paulojeronimo-providers</artifactId>
++
++    <dependencies>
++        <dependency>
++            <groupId>com.paulojeronimo</groupId>
++            <artifactId>paulojeronimo-utils</artifactId>
++            <version>${project.version}</version>
++        </dependency>
++        <dependency>
++            <groupId>com.paulojeronimo</groupId>
++            <artifactId>paulojeronimo-services</artifactId>
++            <version>${project.version}</version>
++        </dependency>
++    </dependencies>
++
++    <build>
++        <plugins>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-jar-plugin</artifactId>
++                <configuration>
++                    <outputDirectory>../mlib</outputDirectory>
++                </configuration>
++            </plugin>
++        </plugins>
++    </build>
++</project>
+diff --git a/HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/HtmlMessageService.java b/HelloWorld/providers/src/main/java/com/paulojeronimo/services/impl/HtmlMessageService.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/HtmlMessageService.java
+rename to HelloWorld/providers/src/main/java/com/paulojeronimo/services/impl/HtmlMessageService.java
+diff --git a/HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/TextMessageService.java b/HelloWorld/providers/src/main/java/com/paulojeronimo/services/impl/TextMessageService.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/TextMessageService.java
+rename to HelloWorld/providers/src/main/java/com/paulojeronimo/services/impl/TextMessageService.java
+diff --git a/HelloWorld/src/com.paulojeronimo.providers/module-info.java b/HelloWorld/providers/src/main/java/module-info.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.providers/module-info.java
+rename to HelloWorld/providers/src/main/java/module-info.java
+diff --git a/HelloWorld/services/pom.xml b/HelloWorld/services/pom.xml
+new file mode 100644
+index 0000000..10b1407
+--- /dev/null
++++ b/HelloWorld/services/pom.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <parent>
++        <groupId>com.paulojeronimo</groupId>
++        <artifactId>helloworld</artifactId>
++        <version>1.0-SNAPSHOT</version>
++    </parent>
++    <modelVersion>4.0.0</modelVersion>
++
++    <artifactId>paulojeronimo-services</artifactId>
++
++    <build>
++        <plugins>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-jar-plugin</artifactId>
++                <configuration>
++                    <outputDirectory>../mlib</outputDirectory>
++                </configuration>
++            </plugin>
++        </plugins>
++    </build>
++</project>
+diff --git a/HelloWorld/src/com.paulojeronimo.services/com/paulojeronimo/services/MessageService.java b/HelloWorld/services/src/main/java/com/paulojeronimo/services/MessageService.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.services/com/paulojeronimo/services/MessageService.java
+rename to HelloWorld/services/src/main/java/com/paulojeronimo/services/MessageService.java
+diff --git a/HelloWorld/src/com.paulojeronimo.services/module-info.java b/HelloWorld/services/src/main/java/module-info.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.services/module-info.java
+rename to HelloWorld/services/src/main/java/module-info.java
+diff --git a/HelloWorld/utils/pom.xml b/HelloWorld/utils/pom.xml
+new file mode 100644
+index 0000000..7646aac
+--- /dev/null
++++ b/HelloWorld/utils/pom.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <parent>
++        <groupId>com.paulojeronimo</groupId>
++        <artifactId>helloworld</artifactId>
++        <version>1.0-SNAPSHOT</version>
++    </parent>
++    <modelVersion>4.0.0</modelVersion>
++
++    <artifactId>paulojeronimo-utils</artifactId>
++
++    <build>
++        <plugins>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-jar-plugin</artifactId>
++                <configuration>
++                    <outputDirectory>../mlib</outputDirectory>
++                </configuration>
++            </plugin>
++        </plugins>
++    </build>
++</project>
+diff --git a/HelloWorld/src/com.paulojeronimo.utils/com/paulojeronimo/utils/Message.java b/HelloWorld/utils/src/main/java/com/paulojeronimo/utils/Message.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.utils/com/paulojeronimo/utils/Message.java
+rename to HelloWorld/utils/src/main/java/com/paulojeronimo/utils/Message.java
+diff --git a/HelloWorld/src/com.paulojeronimo.utils/module-info.java b/HelloWorld/utils/src/main/java/module-info.java
+similarity index 100%
+rename from HelloWorld/src/com.paulojeronimo.utils/module-info.java
+rename to HelloWorld/utils/src/main/java/module-info.java

@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+set +x
+
+BASE_DIR=`cd "$(dirname "$0")"; pwd`
+
+ok=true
+which asciidoctor > /dev/null || {
+  echo "Install asciidoctor first!"
+  ok=false
+}
+
+which asciidoctor-pdf > /dev/null || {
+  echo "Install asciidoctor-pdf first!"
+  ok=false
+}
+$ok || exit 1
+asciidoctor README.adoc
+asciidoctor-pdf README.adoc

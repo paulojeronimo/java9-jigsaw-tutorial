@@ -1,0 +1,110 @@
+diff --git a/HelloWorld/src/com.paulojeronimo.helloworld/com/paulojeronimo/helloworld/Main.java b/HelloWorld/src/com.paulojeronimo.helloworld/com/paulojeronimo/helloworld/Main.java
+index 60a9761..ae420a8 100644
+--- a/HelloWorld/src/com.paulojeronimo.helloworld/com/paulojeronimo/helloworld/Main.java
++++ b/HelloWorld/src/com.paulojeronimo.helloworld/com/paulojeronimo/helloworld/Main.java
+@@ -1,10 +1,15 @@
+ package com.paulojeronimo.helloworld;
+ 
+ import static com.paulojeronimo.utils.Message.*;
++import com.paulojeronimo.utils.Message;
++import com.paulojeronimo.services.MessageService;
+ 
+ public class Main {
+   public static void main(String[] args) {
+-    System.out.println(
+-      sayHelloTo(args.length > 0 ? args[0] : "World"));
++    String to = args.length > 0 ? args[0] : "World";
++    System.out.println(MessageService.getInstance().sayHelloTo(to));
++
++    MessageService xmlMessageService = s -> String.format("<message>%s</message>", sayHelloTo(s));
++    System.out.println("XML format: " + xmlMessageService.sayHelloTo(to));
+   }
+ }
+diff --git a/HelloWorld/src/com.paulojeronimo.helloworld/module-info.java b/HelloWorld/src/com.paulojeronimo.helloworld/module-info.java
+index 391674c..b27cd61 100644
+--- a/HelloWorld/src/com.paulojeronimo.helloworld/module-info.java
++++ b/HelloWorld/src/com.paulojeronimo.helloworld/module-info.java
+@@ -1,3 +1,4 @@
+ module com.paulojeronimo.helloworld {
+   requires com.paulojeronimo.utils;
++  requires com.paulojeronimo.services;
+ }
+diff --git a/HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/HtmlMessageService.java b/HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/HtmlMessageService.java
+new file mode 100644
+index 0000000..f30afd0
+--- /dev/null
++++ b/HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/HtmlMessageService.java
+@@ -0,0 +1,11 @@
++package com.paulojeronimo.services.impl;
++
++import com.paulojeronimo.utils.Message;
++import com.paulojeronimo.services.MessageService;
++
++public class HtmlMessageService implements MessageService {
++  @Override
++  public String sayHelloTo(String to) {
++    return String.format("<b>%s</b>", Message.sayHelloTo(to));
++  }
++}
+diff --git a/HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/TextMessageService.java b/HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/TextMessageService.java
+new file mode 100644
+index 0000000..785b06b
+--- /dev/null
++++ b/HelloWorld/src/com.paulojeronimo.providers/com/paulojeronimo/services/impl/TextMessageService.java
+@@ -0,0 +1,11 @@
++package com.paulojeronimo.services.impl;
++
++import com.paulojeronimo.utils.Message;
++import com.paulojeronimo.services.MessageService;
++
++public class TextMessageService implements MessageService {
++  @Override
++  public String sayHelloTo(String to) {
++    return Message.sayHelloTo(to);
++  }
++}
+diff --git a/HelloWorld/src/com.paulojeronimo.providers/module-info.java b/HelloWorld/src/com.paulojeronimo.providers/module-info.java
+new file mode 100644
+index 0000000..d4e23a1
+--- /dev/null
++++ b/HelloWorld/src/com.paulojeronimo.providers/module-info.java
+@@ -0,0 +1,6 @@
++module com.paulojeronimo.providers {
++  requires com.paulojeronimo.utils;
++  requires com.paulojeronimo.services;
++  provides com.paulojeronimo.services.MessageService
++    with com.paulojeronimo.services.impl.HtmlMessageService;
++}
+diff --git a/HelloWorld/src/com.paulojeronimo.services/com/paulojeronimo/services/MessageService.java b/HelloWorld/src/com.paulojeronimo.services/com/paulojeronimo/services/MessageService.java
+new file mode 100644
+index 0000000..c096d01
+--- /dev/null
++++ b/HelloWorld/src/com.paulojeronimo.services/com/paulojeronimo/services/MessageService.java
+@@ -0,0 +1,17 @@
++package com.paulojeronimo.services;
++
++import java.util.ServiceLoader;
++
++public interface MessageService {
++  String sayHelloTo(String to);
++
++  static MessageService getInstance() {
++    ServiceLoader<MessageService> loader = ServiceLoader.load(MessageService.class);
++    MessageService service = loader.iterator().next();
++    if (service != null) {
++      return service;
++    } else {
++      throw new RuntimeException("No provider for MessageService");
++    }
++  }
++}
+diff --git a/HelloWorld/src/com.paulojeronimo.services/module-info.java b/HelloWorld/src/com.paulojeronimo.services/module-info.java
+new file mode 100644
+index 0000000..e47192b
+--- /dev/null
++++ b/HelloWorld/src/com.paulojeronimo.services/module-info.java
+@@ -0,0 +1,4 @@
++module com.paulojeronimo.services {
++  exports com.paulojeronimo.services;
++  uses com.paulojeronimo.services.MessageService;
++}
